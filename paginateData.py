@@ -39,9 +39,9 @@ class DataPagination:
 		bytesPerPage = self.bytesPerFrame * self.framesPerPage
 		self.bytesPerPage = bytesPerPage
 
-		print(self.floatsPerFrame, "floats per frame")
-		print(self.bytesPerPage, "bytes per page")
-		print(self.framesPerPage, "frames per page")
+		self.log(self.floatsPerFrame, "floats per frame")
+		self.log(self.bytesPerPage, "bytes per page")
+		self.log(self.framesPerPage, "frames per page")
 
 		self._hasPage = True
 
@@ -82,18 +82,26 @@ def cleanZeros(frames):
 def cleanNaNs(frames):
 	return frames[np.argwhere((~np.isnan(frames)).any(axis=1))[:,0]]
 
+def cleanGoals(frames):
+	goals = np.abs(frames[:,2]*2 - 1) >= 1
+	frames_ = frames.copy()
+	frames_[np.argwhere(goals)[:,0]+1, 0] = -1.0
+	return frames_[np.argwhere(~goals)[:,0]]
+
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description="Paginates gzip compressed training data.")
 	parser.add_argument("input", type=str, help="The compressed .gz file or an uncompressed file containing training data.")
 	args = parser.parse_args()
 
 	data = DataPagination(args.input, verbose=True)
-	while data.hasPage():
-		frames = data.nextPage()
-		plt.plot(frames[:, 3])
-		plt.show()
+	# while data.hasPage():
+	# 	frames = cleanGoals(data.nextPage())
+	# 	plt.plot(frames[:,0])
+	# 	plt.plot(frames[:,6])
+	# 	plt.show()
 
-	# with open(args.input.split(".")[0]+"-fixed", "w+b") as f:
-	# 	f.write(struct.pack(">f", 4.0))
-	# 	f.write(struct.pack(">f", 0.0))
-	# 	f.write(frames.tobytes())
+	frames = cleanGoals(data.nextPage())
+	with open(args.input.split(".")[0]+"-fixed", "w+b") as f:
+		f.write(struct.pack(">f", 4.0))
+		f.write(struct.pack(">f", 0.0))
+		f.write(frames.tobytes())
